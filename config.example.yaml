@@ -1,6 +1,13 @@
 # Copie para config.yaml e ajuste.
 username: seu_usuario          # seu @, sem o arroba
 
+# Navegador:
+#   chrome   = o bot abre o Google Chrome instalado (perfil só do bot; login 1x)
+#   cdp      = o bot se conecta num Chrome já aberto com `python -m instagram_bot chrome`
+#   chromium = Chromium do Playwright (se não tiver o Chrome instalado)
+browser: chrome
+cdp_port: 9222                 # usado só no modo cdp
+
 headless: false                # false = você vê o navegador trabalhando
 active_hours: [9, 22]          # só age entre 9h e 22h
 followers_to_scan: 50          # quantos seguidores mais recentes checar por execução

@@ -1,8 +1,15 @@
 """Cliente do Instagram via navegador (Playwright).
 
 A API oficial do Instagram não permite curtir, seguir nem curtir stories, então
-o bot controla um navegador real, logado na sua conta. A sessão fica salva em
-`data/browser-profile`, então o login (incluindo 2FA) é feito só uma vez, à mão.
+o bot controla o Google Chrome, logado na sua conta. Dois modos:
+
+- "chrome": o bot abre o Chrome instalado no computador, com um perfil próprio
+  em `data/browser-profile` (login feito uma vez, à mão, incluindo 2FA).
+- "cdp": o bot se conecta a um Chrome que já está aberto com depuração remota
+  (`python -m instagram_bot chrome`) e trabalha em uma aba nova dele.
+
+Obs.: desde o Chrome 136 a automação não funciona no seu perfil pessoal do
+Chrome; por isso os dois modos usam um perfil separado, só para o bot.
 
 Leitura de dados (lista de seguidores, info do perfil) usa os mesmos endpoints
 JSON que o próprio site chama; as ações (seguir, curtir) são feitas clicando
@@ -16,11 +23,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import platform
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from playwright.sync_api import BrowserContext, Error as PWError, Page, sync_playwright
+from playwright.sync_api import Browser, BrowserContext, Error as PWError, Page, sync_playwright
 
 log = logging.getLogger(__name__)
 
@@ -65,29 +76,70 @@ class Profile:
 
 
 class Instagram:
-    def __init__(self, profile_dir: Path, headless: bool = False):
+    def __init__(self, profile_dir: Path, headless: bool = False, browser: str = "chrome",
+                 cdp_url: str = "http://localhost:9222"):
+        if browser not in ("chrome", "cdp", "chromium"):
+            raise ValueError("browser deve ser 'chrome', 'cdp' ou 'chromium'")
         self.profile_dir = Path(profile_dir)
         self.headless = headless
+        self.browser_mode = browser
+        self.cdp_url = cdp_url
         self._pw = None
+        self._browser: Browser | None = None
         self.context: BrowserContext | None = None
         self.page: Page | None = None
 
     # --- ciclo de vida ------------------------------------------------------
     def __enter__(self) -> "Instagram":
-        self.profile_dir.mkdir(parents=True, exist_ok=True)
         self._pw = sync_playwright().start()
-        self.context = self._pw.chromium.launch_persistent_context(
-            str(self.profile_dir),
-            headless=self.headless,
-            locale="pt-BR",
-            viewport={"width": 1280, "height": 900},
-        )
-        self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        try:
+            if self.browser_mode == "cdp":
+                self._connect_cdp()
+            else:
+                self._launch()
+        except Exception:
+            self._pw.stop()
+            raise
         self.page.set_default_timeout(20_000)
         return self
 
+    def _launch(self) -> None:
+        self.profile_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.context = self._pw.chromium.launch_persistent_context(
+                str(self.profile_dir),
+                channel="chrome" if self.browser_mode == "chrome" else None,
+                headless=self.headless,
+                locale="pt-BR",
+                viewport={"width": 1280, "height": 900},
+            )
+        except PWError as e:
+            if self.browser_mode == "chrome" and "chrome" in str(e).lower():
+                raise InstagramError(
+                    "Google Chrome não encontrado. Instale o Chrome ou rode: "
+                    "playwright install chrome"
+                ) from e
+            raise
+        self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+
+    def _connect_cdp(self) -> None:
+        try:
+            self._browser = self._pw.chromium.connect_over_cdp(self.cdp_url)
+        except PWError as e:
+            raise InstagramError(
+                f"Não consegui conectar ao Chrome em {self.cdp_url}. Abra-o antes com: "
+                "python -m instagram_bot chrome"
+            ) from e
+        self.context = self._browser.contexts[0]
+        # Aba própria: não mexe nas abas que você estiver usando.
+        self.page = self.context.new_page()
+
     def __exit__(self, *exc) -> None:
-        if self.context:
+        if self.browser_mode == "cdp":
+            # Fecha só a aba do bot; o Chrome continua aberto.
+            if self.page and not self.page.is_closed():
+                self.page.close()
+        elif self.context:
             self.context.close()
         if self._pw:
             self._pw.stop()
@@ -246,3 +298,35 @@ class Instagram:
         box.type(text, delay=60)
         self.page.keyboard.press("Enter")
         self.page.wait_for_timeout(2000)
+
+
+def find_chrome() -> str:
+    """Caminho do executável do Google Chrome instalado."""
+    system = platform.system()
+    if system == "Darwin":
+        candidates = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+    elif system == "Windows":
+        candidates = [
+            os.path.join(os.environ.get(var, ""), r"Google\Chrome\Application\chrome.exe")
+            for var in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")
+        ]
+    else:
+        candidates = [shutil.which(n) or "" for n in ("google-chrome", "google-chrome-stable")]
+    for c in candidates:
+        if c and os.path.isfile(c):
+            return c
+    raise InstagramError("Google Chrome não encontrado neste computador")
+
+
+def launch_chrome_for_cdp(profile_dir: Path, port: int) -> subprocess.Popen:
+    """Abre o Chrome com depuração remota, num perfil separado só para o bot."""
+    profile_dir = Path(profile_dir).resolve()
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    return subprocess.Popen([
+        find_chrome(),
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={profile_dir}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"{BASE}/",
+    ])

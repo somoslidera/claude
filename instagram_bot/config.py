@@ -44,6 +44,11 @@ class Routine:
 class Config:
     username: str
     data_dir: Path = Path("data")
+    # chrome   = o bot abre o Google Chrome instalado (perfil próprio do bot)
+    # cdp      = conecta num Chrome já aberto com `python -m instagram_bot chrome`
+    # chromium = Chromium do Playwright (sem Chrome instalado)
+    browser: str = "chrome"
+    cdp_port: int = 9222
     headless: bool = False
     active_hours: tuple[int, int] = (9, 22)   # só roda entre 9h e 22h
     followers_to_scan: int = 50
@@ -58,6 +63,10 @@ class Config:
     @property
     def profile_dir(self) -> Path:
         return self.data_dir / "browser-profile"
+
+    @property
+    def cdp_url(self) -> str:
+        return f"http://localhost:{self.cdp_port}"
 
     @property
     def db_path(self) -> Path:
@@ -100,6 +109,8 @@ def _validate(cfg: Config) -> None:
         lo, hi = getattr(cfg.delays, name)
         if lo < 0 or hi < lo:
             raise ValueError(f"delays.{name} deve ser [min, max] com 0 <= min <= max")
+    if cfg.browser not in ("chrome", "cdp", "chromium"):
+        raise ValueError("browser deve ser 'chrome', 'cdp' ou 'chromium'")
     start, end = cfg.active_hours
     if not (0 <= start <= 23 and 1 <= end <= 24):
         raise ValueError("active_hours deve ser [inicio, fim] entre 0 e 24")

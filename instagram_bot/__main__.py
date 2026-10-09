@@ -1,6 +1,7 @@
 """CLI.
 
-    python -m instagram_bot login              # 1x: abre o navegador para você logar
+    python -m instagram_bot chrome             # (modo cdp) abre o Chrome para o bot se conectar
+    python -m instagram_bot login              # 1x: abre o Chrome para você logar
     python -m instagram_bot run                # executa a rotina uma vez
     python -m instagram_bot run --dry-run      # simula, sem curtir/seguir nada
     python -m instagram_bot loop               # repete a rotina o dia todo
@@ -17,16 +18,18 @@ import sys
 import time
 
 from .config import load_config
-from .instagram import Instagram, InstagramError
+from .instagram import Instagram, InstagramError, launch_chrome_for_cdp
 from .routine import Routine
 from .storage import Storage
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="instagram_bot")
-    ap.add_argument("command", choices=["login", "run", "loop", "status"])
+    ap.add_argument("command", choices=["chrome", "login", "run", "loop", "status"])
     ap.add_argument("-c", "--config", default="config.yaml")
     ap.add_argument("--dry-run", action="store_true", help="simula sem executar ações")
+    ap.add_argument("--browser", choices=["chrome", "cdp", "chromium"],
+                    help="sobrescreve 'browser' do config.yaml")
     ap.add_argument("--headless", action="store_true", help="navegador sem janela")
     ap.add_argument("--interval", type=int, default=60,
                     help="minutos (aprox.) entre execuções no modo loop")
@@ -36,21 +39,36 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config(args.config)
     cfg.dry_run = cfg.dry_run or args.dry_run
     cfg.headless = cfg.headless or args.headless
+    cfg.browser = args.browser or cfg.browser
     storage = Storage(cfg.db_path)
 
     if args.command == "status":
         print(json.dumps(storage.summary(), indent=2, ensure_ascii=False))
         return 0
 
-    if args.command == "login":
-        with Instagram(cfg.profile_dir, headless=False) as ig:
-            ig.interactive_login()
-        print("Login salvo. Agora rode: python -m instagram_bot run --dry-run")
-        return 0
+    def open_ig(headless: bool) -> Instagram:
+        return Instagram(cfg.profile_dir, headless=headless,
+                         browser=cfg.browser, cdp_url=cfg.cdp_url)
 
     try:
+        if args.command == "chrome":
+            launch_chrome_for_cdp(cfg.profile_dir, cfg.cdp_port)
+            print(f"Chrome aberto (porta {cfg.cdp_port}). Faça login no Instagram nele, se "
+                  "ainda não fez, e deixe a janela aberta.\n"
+                  "Depois rode: python -m instagram_bot run --browser cdp --dry-run")
+            return 0
+
+        if args.command == "login":
+            with open_ig(headless=False) as ig:
+                if ig.is_logged_in():
+                    print("Já está logado.")
+                else:
+                    ig.interactive_login()
+                    print("Login salvo. Agora rode: python -m instagram_bot run --dry-run")
+            return 0
+
         while True:
-            with Instagram(cfg.profile_dir, headless=cfg.headless) as ig:
+            with open_ig(headless=cfg.headless) as ig:
                 ig.ensure_logged_in()
                 Routine(cfg, ig, storage).run()
             if args.command == "run":

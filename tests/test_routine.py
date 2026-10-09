@@ -137,3 +137,17 @@ def test_example_config_loads():
     c = load_config("config.example.yaml")
     assert c.delays.between_actions == (4, 11)
     assert c.routine.posts_to_like == 2
+
+
+def test_browser_option(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("username: me\nbrowser: cdp\ncdp_port: 9300\n")
+    c = load_config(p)
+    assert c.browser == "cdp" and c.cdp_url == "http://localhost:9300"
+    p.write_text("username: me\nbrowser: firefox\n")
+    with pytest.raises(ValueError):
+        load_config(p)
+
+
+def test_example_config_defaults_to_chrome():
+    assert load_config("config.example.yaml").browser == "chrome"
