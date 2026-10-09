@@ -94,7 +94,7 @@ def load_config(path: str | Path) -> Config:
     cfg = _build(Config, {
         k: v for k, v in raw.items() if k not in ("limits", "delays", "routine")
     })
-    cfg.username = cfg.username.lstrip("@").strip()
+    cfg.username = cfg.username.lstrip("@").strip().lower()
     cfg.data_dir = Path(cfg.data_dir)
     cfg.limits = _build(Limits, raw.get("limits"))
     cfg.delays = _build(Delays, raw.get("delays"))

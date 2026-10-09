@@ -54,6 +54,9 @@ class Storage:
                     new.append(u)
         return new
 
+    def known_followers(self) -> set[str]:
+        return {r[0] for r in self.conn.execute("SELECT username FROM followers")}
+
     def pending_followers(self, limit: int) -> list[str]:
         rows = self.conn.execute(
             "SELECT username FROM followers WHERE processed_at IS NULL"

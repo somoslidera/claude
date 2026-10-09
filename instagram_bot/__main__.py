@@ -2,6 +2,7 @@
 
     python -m instagram_bot chrome             # (modo cdp) abre o Chrome para o bot se conectar
     python -m instagram_bot login              # 1x: abre o Chrome para você logar
+    python -m instagram_bot analisar           # só lista quem começou a seguir (não age)
     python -m instagram_bot run                # executa a rotina uma vez
     python -m instagram_bot run --dry-run      # simula, sem curtir/seguir nada
     python -m instagram_bot loop               # repete a rotina o dia todo
@@ -17,6 +18,7 @@ import random
 import sys
 import time
 
+from .analysis import analyze, print_table, save_csv
 from .config import load_config
 from .instagram import Instagram, InstagramError, launch_chrome_for_cdp
 from .routine import Routine
@@ -25,12 +27,14 @@ from .storage import Storage
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="instagram_bot")
-    ap.add_argument("command", choices=["chrome", "login", "run", "loop", "status"])
+    ap.add_argument("command", choices=["chrome", "login", "analisar", "run", "loop", "status"])
     ap.add_argument("-c", "--config", default="config.yaml")
     ap.add_argument("--dry-run", action="store_true", help="simula sem executar ações")
     ap.add_argument("--browser", choices=["chrome", "cdp", "chromium"],
                     help="sobrescreve 'browser' do config.yaml")
     ap.add_argument("--headless", action="store_true", help="navegador sem janela")
+    ap.add_argument("-n", "--quantidade", type=int, default=20,
+                    help="analisar: quantos seguidores mais recentes listar")
     ap.add_argument("--interval", type=int, default=60,
                     help="minutos (aprox.) entre execuções no modo loop")
     args = ap.parse_args(argv)
@@ -65,6 +69,18 @@ def main(argv: list[str] | None = None) -> int:
                 else:
                     ig.interactive_login()
                     print("Login salvo. Agora rode: python -m instagram_bot run --dry-run")
+            return 0
+
+        if args.command == "analisar":
+            with open_ig(headless=cfg.headless) as ig:
+                ig.ensure_logged_in()
+                rows = analyze(cfg, ig, storage, args.quantidade)
+            print(f"\nSeguidores mais recentes de @{cfg.username} (1 = mais recente):\n")
+            print_table(rows)
+            print(f"\nRelatório salvo em: {save_csv(rows, cfg.data_dir)}")
+            if rows and rows[0]["novo"] == "-":
+                print("(1ª análise: estes viraram a base. Nas próximas, quem seguir depois "
+                      "aparece como 'novo' e entra na fila da rotina.)")
             return 0
 
         while True:

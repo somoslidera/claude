@@ -52,6 +52,10 @@ def _sized(selector: str, px: int) -> str:
     return ", ".join(f'{part.strip()}[height="{px}"]' for part in selector.split(","))
 
 
+def _count(user: dict, edge: str) -> int:
+    return int((user.get(edge) or {}).get("count") or 0)
+
+
 def _click_icon(icon) -> None:
     icon.locator("xpath=ancestor::*[@role='button' or self::button][1]").click()
 
@@ -73,6 +77,10 @@ class Profile:
     requested_by_me: bool
     follows_me: bool
     recent_shortcodes: list[str] = field(default_factory=list)
+    full_name: str = ""
+    posts: int = 0
+    followers: int = 0
+    following: int = 0
 
 
 class Instagram:
@@ -198,6 +206,10 @@ class Instagram:
             requested_by_me=bool(user.get("requested_by_viewer")),
             follows_me=bool(user.get("follows_viewer")),
             recent_shortcodes=[e["node"]["shortcode"] for e in edges if e.get("node")],
+            full_name=user.get("full_name") or "",
+            posts=_count(user, "edge_owner_to_timeline_media"),
+            followers=_count(user, "edge_followed_by"),
+            following=_count(user, "edge_follow"),
         )
 
     def recent_followers(self, my_username: str, count: int) -> list[str]:

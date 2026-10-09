@@ -51,6 +51,23 @@ python -m instagram_bot run --browser cdp --dry-run
 
 Sem o Chrome instalado, use `browser: chromium` e rode antes `playwright install chromium`.
 
+## Primeiro teste: analisar quem começou a seguir
+
+Só leitura — não curte, não segue, não manda nada:
+
+```bash
+python -m instagram_bot login    -c config.charles.simon.yaml   # 1x: login na conta do Charles
+python -m instagram_bot analisar -c config.charles.simon.yaml   # lista os 20 seguidores mais recentes
+python -m instagram_bot analisar -c config.charles.simon.yaml -n 50
+```
+
+Mostra uma tabela (nome, se é novo, privado, se já segue de volta, posts, seguidores) e salva um
+CSV (abre no Excel) em `data/charles.simon/`. Na 1ª análise todos viram "base"; nas seguintes,
+quem seguiu depois aparece como **novo** e fica na fila da rotina.
+
+Cada conta tem seu próprio arquivo de config e sua pasta em `data/` (Chrome, histórico e
+relatórios separados), então dá para atender vários clientes sem misturar.
+
 ## Uso
 
 ```bash

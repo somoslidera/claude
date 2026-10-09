@@ -1,0 +1,31 @@
+# Conta do Charles Simon. Uso:  python -m instagram_bot analisar -c config.charles.simon.yaml
+# Confirme o @ exato no Instagram (sem o arroba; o Instagram usa só minúsculas).
+username: charles.simon
+data_dir: data/charles.simon   # perfil do Chrome, banco e relatórios separados por conta
+
+browser: chrome
+headless: false
+active_hours: [9, 22]
+followers_to_scan: 50
+baseline_on_first_run: true
+dry_run: true                  # TESTE: só simula. Mude para false quando aprovar.
+
+limits:
+  follows_per_day: 20          # começando baixo
+  likes_per_day: 60
+  story_likes_per_day: 30
+  dms_per_day: 0
+  profiles_per_run: 5
+
+delays:
+  between_actions: [5, 12]
+  between_profiles: [60, 150]
+
+routine:
+  like_posts: true
+  posts_to_like: 2
+  follow_back: true
+  like_story: true
+  skip_private: true
+  send_dm: false
+  skip_usernames: []

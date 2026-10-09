@@ -151,3 +151,23 @@ def test_browser_option(tmp_path):
 
 def test_example_config_defaults_to_chrome():
     assert load_config("config.example.yaml").browser == "chrome"
+
+
+def test_analysis_marks_new_followers_and_takes_no_action(cfg):
+    from instagram_bot.analysis import analyze, save_csv
+    ig = FakeIG(["ana", "bia"])
+    storage = Storage(cfg.db_path)
+    rows = analyze(cfg, ig, storage, 20, pause=lambda b: None)
+    assert [r["novo"] for r in rows] == ["-", "-"]          # 1ª vez: base
+    ig.followers = ["joao", "ana", "bia"]
+    rows = analyze(cfg, ig, storage, 20, pause=lambda b: None)
+    assert [(r["username"], r["novo"]) for r in rows] == [
+        ("joao", "sim"), ("ana", "não"), ("bia", "não")]
+    assert ig.calls == []                                     # nada de curtir/seguir
+    assert storage.pending_followers(10) == ["joao"]          # fica para a rotina
+    assert save_csv(rows, cfg.data_dir).read_text(encoding="utf-8-sig").startswith("ordem;")
+
+
+def test_charles_config_loads():
+    c = load_config("config.charles.simon.yaml")
+    assert c.username == "charles.simon" and c.dry_run
