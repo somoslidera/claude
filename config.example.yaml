@@ -1,0 +1,31 @@
+# Copie para config.yaml e ajuste.
+username: seu_usuario          # seu @, sem o arroba
+
+headless: false                # false = você vê o navegador trabalhando
+active_hours: [9, 22]          # só age entre 9h e 22h
+followers_to_scan: 50          # quantos seguidores mais recentes checar por execução
+baseline_on_first_run: true    # 1ª execução não age nos seguidores antigos
+dry_run: false                 # true = só simula (registra o que faria)
+
+limits:                        # limites POR DIA — comece baixo e suba aos poucos
+  follows_per_day: 40
+  likes_per_day: 120
+  story_likes_per_day: 60
+  dms_per_day: 15
+  profiles_per_run: 10         # perfis processados por execução
+
+delays:                        # pausas aleatórias em segundos [mín, máx]
+  between_actions: [4, 11]
+  between_profiles: [45, 120]
+
+routine:
+  like_posts: true
+  posts_to_like: 2             # curte os N posts mais recentes
+  follow_back: true
+  like_story: true
+  skip_private: true           # perfil privado (que você não segue): não tenta curtir
+  send_dm: false               # mensagem de boas-vindas (maior risco de bloqueio)
+  dm_templates:                # um é sorteado; {username} vira o @ da pessoa
+    - "Oi {username}! Obrigado por seguir 😊"
+    - "Que bom ter você por aqui, {username}!"
+  skip_usernames: []           # perfis para ignorar sempre
