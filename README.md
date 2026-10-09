@@ -51,6 +51,19 @@ python -m instagram_bot run --browser cdp --dry-run
 
 Sem o Chrome instalado, use `browser: chromium` e rode antes `playwright install chromium`.
 
+## Jeito mais fácil: clique duplo (pasta `atalhos/`)
+
+Precisa do **Python 3** (python.org — no Windows, marque *"Add python.exe to PATH"* na instalação)
+e do **Google Chrome**. Depois, na pasta `atalhos/`, em ordem:
+
+| | Windows | Mac |
+|---|---|---|
+| 1. instalar (só 1x) | `1-instalar.bat` | `1-instalar.command` |
+| 2. login na conta do Charles (só 1x) | `2-login-charles.bat` | `2-login-charles.command` |
+| 3. analisar quem começou a seguir | `3-analisar-charles.bat` | `3-analisar-charles.command` |
+
+No Mac, se aparecer "não é possível abrir", clique com o botão direito → **Abrir**.
+
 ## Primeiro teste: analisar quem começou a seguir
 
 Só leitura — não curte, não segue, não manda nada:
